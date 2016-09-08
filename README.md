@@ -3,10 +3,10 @@
 
 Term: Fall 2016
 
-+ Team #
-+ Projec title: Lorem ipsum dolor sit amet
++ Team #2
++ Projec title: Analysis of American Community Surveys
 + Team members
-	+ team member 1
+	+ Ziwei Meng
 	+ team member 2
 	+ team member 3
 	+ team member 4
