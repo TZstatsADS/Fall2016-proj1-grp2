@@ -81,7 +81,7 @@ carRentRatio <- carRent%>%
   mutate(rentRatio=rent/carOwn$own)
 carRentRatio
 
-#It is clear that people who have no vehicle are more likely to renn the house,
+#It is clear that people who have no vehicle are more likely to rent the house,
 #and as more vehicles the people have, more possibiliy of having their own home.
 
 
