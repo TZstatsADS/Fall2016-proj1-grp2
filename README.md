@@ -7,7 +7,7 @@ Term: Fall 2016
 + Projec title: Analysis of American Community Surveys
 + Team members
 	+ Ziwei Meng
-	+ team member 2
+	+ Zichen Wu
 	+ team member 3
 	+ team member 4
 	+ team member 5
