@@ -1,0 +1,352 @@
+---
+title: "Untitled"
+runtime: shiny
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Why we do this project
+
+#Deal With Data
+```{r,echo = FALSE}
+#All data here saving as 2014P.RData or 2014H.RData
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(grid)
+```
+
+#Plots
+```{r,echo = FALSE}
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  require(grid)
+  
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+  
+  numPlots = length(plots)
+  
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                     ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+  
+  if (numPlots==1) {
+    print(plots[[1]])
+    
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+    
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+      
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+```
+
+
+##Number of People(Time,State,Ratio_Type)
+##For the State, we can only pick out some of them and substitute with names
+```{r,echo = FALSE}
+NP<-function(State,Plot_Type,Year){
+  setwd("~/Desktop/Columbia University/third semester/Applied Data Science/project 1/dataset")
+  load(paste0(Year,"H.RData"))
+  #load(paste0(Year,"P.RData"))
+  
+  DataH$ST <- as.factor(DataH$ST)
+levels(DataH$ST) <- c("Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut","Delaware", "District of Columbia", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota","Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota","Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia","Wisconsin", "Wyoming", "Puerto Rico")
+  Rent = DataH%>%select(TEN,ST,NP)%>%filter(TEN == 3)%>%filter(!is.na(ST),!is.na(NP))
+  Buy = DataH%>%select(TEN,ST,NP)%>%filter(TEN ==c(1,2))%>%filter(!is.na(ST),!is.na(NP))
+  
+  if(State != "US"){
+    Rent = Rent%>%filter(ST == State)
+    Buy = Buy%>%filter(ST == State)
+  }
+  N_Rent = Rent%>%filter(NP<=10)%>%mutate(NP = as.numeric(NP))%>%group_by(NP)%>%summarise(RENT = n())%>%mutate(TEN = "RENT")
+  N_Buy =  Buy%>%filter(NP<=10)%>%mutate(NP =as.numeric(NP))%>%group_by(NP)%>%summarise(BUY = n())%>%mutate(TEN = "BUY")
+switch(Plot_Type,
+       "Family Size in Buy/Rent Group" = {
+         NR = N_Rent%>%select(NP,RENT)
+         mylabel = as.vector(NR$NP)
+         RLabel = paste(mylabel,"(",round(NR$RENT /sum(NR$RENT)*100,2),"%)",sep = "") 
+         A1 = ggplot(NR,aes(x ="",y = RENT, fill = factor(NP)))+
+           geom_bar(stat = "identity",width = 1) + 
+           coord_polar(theta = "y")+
+           theme(axis.text = element_blank())+
+           scale_fill_discrete("Family Size",breaks = NR$NP,labels = RLabel) +
+          labs(x = "",y="",title = paste0("Family Size in Rent Group in ",State))
+         
+         NB = N_Buy%>%select(NP,BUY)
+         NB = N_Buy%>%select(NP,BUY)
+         mylabel = as.vector(NB$NP)
+         BLabel = paste(mylabel,"(",round(NB$BUY/sum(NB$BUY)*100,2),"%)",sep = "")
+         A2 = ggplot(NB,aes(x ="",y = BUY, fill = factor(NP)))+
+           geom_bar(stat = "identity",width = 1) + 
+           coord_polar(theta = "y")+
+           theme(axis.text = element_blank())+
+           scale_fill_discrete("Family Size",breaks = NB$NP,labels = BLabel) +
+          labs(x = "",y="",title = paste0("Family Size in Buy Group in ",State))
+        par(mfrow=c(1,2))
+        multiplot(A1,A2,cols=2)
+         },
+       "Rent Ratio for Each Size of Family" = {
+         P_Rent = N_Rent%>%mutate(Count = RENT)%>%select(NP,Count,TEN)
+         P_Buy = N_Buy %>% mutate(Count = BUY)%>%select(NP,Count,TEN)
+         P_Rent.Buy = rbind(P_Rent,P_Buy)
+         P_Rent.Buy = P_Rent.Buy%>%group_by(NP)%>%mutate(Percentage = Count/sum(Count))%>%filter(TEN == "BUY")
+         
+        if(State == US){
+         ggplot(P_Rent.Buy,aes(x = NP,colour = factor(NP)))+
+           geom_point(aes(y = Percentage,size = Count)) +
+           ggtitle(paste0("Rent Ratio for Each Size of Family in ",State))+
+           scale_size_continuous(name = "Rent Population",range= c(5,30),
+           breaks = c(40000,80000,120000,160000),labels = c("40k","80k","120k","160k"))+
+           ylim(c(0.3,0.8)) + scale_x_continuous(breaks = 1:10)+
+           theme_bw() +theme(panel.grid.major = element_blank(), 
+                             panel.grid.minor = element_blank(),
+                             legend.position= "left")+
+           labs(x = "Family Size", y = "Rent Ratio") 
+           guides(colour = FALSE)
+        }else{
+           ggplot(P_Rent.Buy,aes(x = NP,colour = factor(NP)))+
+           geom_point(aes(y = Percentage,size = Count)) +
+           ggtitle(paste0("Rent Ratio for Each Size of Family in ",State))+
+           scale_size_continuous(name = "Rent Population",range= c(5,30),
+           breaks = c(2000,4000,6000),labels = c("2k","4k","6k"))+
+           ylim(c(0.3,0.8)) + scale_x_continuous(breaks = 1:10)+
+           theme_bw() +theme(panel.grid.major = element_blank(), 
+                             panel.grid.minor = element_blank())+
+           labs(x = "Family Size", y = "Rent Ratio")+ 
+           guides(colour = FALSE)
+        }
+       })
+}
+```
+
+
+```{r Family.Size, echo=FALSE}
+inputPanel(
+  selectInput("State", label = "Choose Region",
+              choices = c("US","Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "District of Columbia", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois","Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts","Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada","New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota","Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota","Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia","Wisconsin", "Wyoming", "Puerto Rico"), selected = "US",width = "100%"),
+  selectInput("Plot_Type", label = "Plot Type",
+              choices = c("Family Size in Buy/Rent Group","Rent Ratio for Each Size of Family"),selected = "Family Size in Buy/Rent Group",width ="100%"),
+  
+  sliderInput("Year", label = "Choose Year",
+              min = 2008, max = 2014, value = 2014, step = 1)
+)
+renderPlot({
+  NP(input$State,input$Plot_Type,input$Year)
+})
+```
+
+
+
+#Race
+```{r,echo = FALSE}
+Race<-function(Year,Type){
+    setwd("~/Desktop/Columbia University/third semester/Applied Data Science/project 1/dataset")
+  load(paste0(Year,"H.RData"))
+  load(paste0(Year,"P.RData"))
+  Rent = DataH%>%filter(!is.na(SERIALNO),!is.na(TEN))%>%filter(TEN == 3)
+  Buy = DataH%>%filter(!is.na(SERIALNO),!is.na(TEN))%>%filter(TEN %in% c(1,2))
+  PR = DataP%>%select(SERIALNO,RAC1P,RAC2P)%>%filter(!is.na(RAC1P),!is.na(RAC2P),SERIALNO%in%Rent$SERIALNO)%>%mutate(TEN = "RENT")
+  PB = DataP%>%select(SERIALNO,RAC1P,RAC2P)%>%filter(!is.na(RAC1P),!is.na(RAC2P),SERIALNO%in%Buy$SERIALNO)%>%mutate(TEN = "BUY")
+switch(Type,
+       "Ethnicity" = {
+  Race.P.Rent = PR %>% filter(!is.na(RAC2P))%>%group_by(RAC2P)%>%summarise(Count = n())
+  Race.P.Buy = PB %>% filter(!is.na(RAC2P))%>%group_by(RAC2P)%>%summarise(Count = n())
+  Race.P.Rent.Buy = left_join(Race.P.Buy,Race.P.Rent,by = "RAC2P")
+  colnames(Race.P.Rent.Buy) = c("Race","Buy","Rent")
+  Race.Rent.Ratio = Race.P.Rent.Buy%>%mutate(Ratio = Rent/(Buy+Rent))%>%select(Race,Ratio)
+  Choose.Ethnicity = c("01","02","17","38","43","45","48","49","59","68")
+  Race.Rent.Ratio = Race.Rent.Ratio%>%filter(Race%in%Choose.Ethnicity)
+  Race.Rent.Ratio$Race = factor(Race.Rent.Ratio$Race)
+  levels(Race.Rent.Ratio$Race) = c("White","Black or African American","Navajo","Asian Indian","Chinese","Filipino","Japanese","Korean","Asian Combination","Two or more")
+  ggplot(Race.Rent.Ratio,aes(x = Race, y = Ratio)) + 
+    geom_bar(aes(fill = Race),stat = "identity",width = 0.7) + 
+    ggtitle("Race vs. Rent Ratio")+
+    labs(x = "Race( 10 largest groups",y = "Rent Ratio")
+  },
+      "Race" = {
+  Race.P.Rent = PR %>% filter(!is.na(RAC1P))%>%group_by(RAC1P)%>%summarise(Count = n())
+  Race.P.Buy = PB %>% filter(!is.na(RAC1P))%>%group_by(RAC1P)%>%summarise(Count = n())
+  Race.P.Rent.Buy = left_join(Race.P.Buy,Race.P.Rent,by = "RAC1P")
+  colnames(Race.P.Rent.Buy) = c("Race","Buy","Rent")
+  Race.Rent.Ratio = Race.P.Rent.Buy%>%mutate(Ratio = Rent/(Buy+Rent))%>%select(Race,Ratio)
+  Race.Rent.Ratio$Race = factor(Race.Rent.Ratio$Race)
+  levels(Race.Rent.Ratio$Race) = c("White","Black or African American","American Indian","Alaska Native","Tribes","Asian","Hawaiian/Pacific","Other alone","Two or more races")
+  ggplot(Race.Rent.Ratio,aes(x = Race, y = Ratio)) + 
+    geom_bar(aes(fill = as.factor(Race)),stat = "identity",width = 0.7) + 
+    ggtitle("Race vs. Rent Ratio")+guides(fill=FALSE)+
+    labs(x = "Race",y = "Rent Ratio")}) 
+}
+```
+
+```{r Race, echo=FALSE}
+inputPanel(
+  selectInput("Race.Type", label = "Choose Race Type",
+              choices = c("Race","Ethnicity"), selected = "Race_Code_1"),
+  sliderInput("Year", label = "Choose Year",
+              min = 2008, max = 2014, value = 2014, step = 1)
+)
+renderPlot({
+  Race(input$Year,input$Race.Type)
+})
+```
+
+
+#Education
+```{r,echo = FALSE}
+Education<-function(Year,Var,AGE){
+      setwd("~/Desktop/Columbia University/third semester/Applied Data Science/project 1/dataset")
+  load(paste0(Year,"H.RData"))
+  load(paste0(Year,"P.RData"))
+  Rent = DataH%>%filter(!is.na(SERIALNO),!is.na(TEN))%>%filter(TEN == 3)
+  Buy = DataH%>%filter(!is.na(SERIALNO),!is.na(TEN))%>%filter(TEN %in% c(1,2))
+  Education_P = DataP%>%select(SCHL,ST,SERIALNO,AGEP,PINCP)%>%filter(!is.na(SCHL),!is.na(ST),!is.na(SERIALNO),!is.na(PINCP),AGEP>AGE) %>%mutate(ST = as.numeric(ST),SCHL = as.numeric(SCHL),PINCP = as.numeric(PINCP))
+  Education_P$SCHL = as.factor(Education_P$SCHL)
+  levels(Education_P$SCHL) = c(rep("Below Bachelor",20),"Bachelor","Master","Professional","Doctorate")
+  Education_Rent = Education_P%>%filter(SERIALNO%in%Rent$SERIALNO)%>%group_by(SCHL)%>%summarise(RENT = n(),INCOME = mean(PINCP))
+  Education_Buy = Education_P%>%filter(SERIALNO%in%Buy$SERIALNO)%>%group_by(SCHL)%>%summarise(BUY = n(),INCOME = mean(PINCP))
+  Education_Rent.Buy = merge(Education_Buy,Education_Rent,by="SCHL")
+  range01 <- function(x){(x-min(x))/(2*(max(x)-min(x)))}
+  switch(Var,
+         "Rent Ratio and Income" = {
+             Education_Rent.Ratio = Education_Rent.Buy%>%mutate(Ratio = RENT/(RENT+BUY),Education = SCHL,Income = INCOME.x)%>%select(Education,Ratio,Income)
+             A1 = Education_Rent.Ratio[,1:2]
+             A2 = Education_Rent.Ratio[,c(1,3)]
+             A1 = A1%>%mutate(Group = "Rent Ratio")
+             A2 = A2%>%mutate(Ratio = range01(Income),Group = "Average Income(Scaled)")%>%select(Education,Ratio,Group)
+             Education_Rent.Income = rbind(A2,A1) 
+            ggplot(Education_Rent.Income,aes(x = Education,y = Ratio,group = Group, color = Group)) +geom_line(stat = "identity",aes(linetype = Group)) + ylab("Rent Ratio") + scale_linetype_manual(values=c("solid", "twodash"))+ylim(c(0,0.5))+theme_bw() +theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(),legend.position = "bottom",legend.title = element_blank())+geom_point()+ggtitle(paste0("Education vs Rent Ratio (above ",AGE," years old)"))},
+      "Buy Ratio and Income" = {
+        Education_Rent.Ratio = Education_Rent.Buy%>%mutate(Ratio = BUY/(RENT+BUY),Education = SCHL,Income = INCOME.y)%>%select(Education,Ratio,Income)
+             A1 = Education_Rent.Ratio[,1:2]
+             A2 = Education_Rent.Ratio[,c(1,3)]
+             A1 = A1%>%mutate(Group = "Buy Ratio")
+             A2 = A2%>%mutate(Ratio = 0.5+range01(Income),Group = "Average Income(Scaled)")%>%select(Education,Ratio,Group)
+             Education_Buy.Income = rbind(A2,A1) 
+             
+            ggplot(Education_Buy.Income,aes(x = Education,y = Ratio,group = Group, color = Group)) +geom_line(stat = "identity",aes(linetype = Group)) + ylab("Buy Ratio") + scale_linetype_manual(values=c("solid", "twodash"))+ylim(c(0.5,1))+theme_bw() +theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(),legend.position = "bottom",legend.title = element_blank())+geom_point()+ggtitle(paste0("Education vs Buy Ratio (above ",AGE," years old)"))
+         })
+}
+```
+
+```{r Education, echo=FALSE}
+inputPanel(
+  selectInput("Var", label = "Choose Rent or Buy Ratio",
+              choices = c("Rent Ratio and Income","Buy Ratio and Income"), selected = "Rent Ratio and Income"),
+  sliderInput("Year", label = "Choose Year",
+              min = 2008, max = 2014, value = 2014, step = 1),
+  numericInput("Age", label = "Population Above this Age",18,min=0,max=40)
+)
+renderPlot({
+  Education(input$Year,input$Var,input$Age)
+})
+```
+
+#Class of work
+```{r}
+Income.Level<-function(x){
+  a = as.numeric(x)
+  return(floor(a/1e5))
+}
+```
+
+```{r,echo = FALSE}
+Class.of.Work<-function(Year){
+  setwd("~/Desktop/Columbia University/third semester/Applied Data Science/project 1/dataset")
+  load(paste0(Year,"H.RData"))
+  load(paste0(Year,"P.RData"))
+  
+  Rent = DataH%>%filter(!is.na(SERIALNO),!is.na(TEN))%>%filter(TEN == 3)
+  Buy = DataH%>%filter(!is.na(SERIALNO),!is.na(TEN))%>%filter(TEN %in% c(1,2))
+  
+  C.Rent = DataP%>%select(COW,SERIALNO,PINCP,ADJINC)%>%filter(SERIALNO%in%Rent$SERIALNO,!is.na(COW),!is.na(PINCP),!is.na(ADJINC))%>%mutate(Income = Income.Level(as.numeric(PINCP)*as.numeric(ADJINC)/1e6))%>% group_by(COW,Income)%>%summarise(Count.R = n())
+  
+    C.Buy = DataP%>%select(COW,SERIALNO,PINCP,ADJINC)%>%filter(SERIALNO%in%Buy$SERIALNO,!is.na(COW),!is.na(PINCP),!is.na(ADJINC))%>%mutate(Income = Income.Level(as.numeric(PINCP)*as.numeric(ADJINC)/1e6))%>% group_by(COW,Income)%>%summarise(Count.B = n())
+  
+  C.Rent.Buy = left_join(C.Rent,C.Buy,by=c("COW","Income"))
+  C.Rent.Buy[is.na(C.Rent.Buy)] = 0
+  C.Rent.Buy = C.Rent.Buy%>%mutate(Rent.Ratio = Count.R/(Count.R+Count.B))%>%select(COW,Income,Rent.Ratio)
+  
+  
+  C.Rent.Buy$COW <- factor(C.Rent.Buy$COW)
+levels(C.Rent.Buy$COW) <- c("Private profit", "Private non-profit", "Local government", "State government", "Federal government", "Self-employed", "Self-employed", "Working without pay", "Unemployed")
+  
+  ggplot(C.Rent.Buy,aes(x = Income))+geom_point(aes(y = COW,size = Rent.Ratio,colour = factor(COW)))+guides(colour = FALSE)+scale_size_continuous(range=c(1,30))+ theme_bw() + ggtitle("Rent Ratio vs Class of Work and Income ") + labs(x = "Income Level(100k)", y = "Class of Work") + scale_x_continuous(breaks = c(-1:10)) + theme(panel.grid.minor = element_blank())
+}
+```
+
+```{r COW, echo=FALSE}
+inputPanel(
+  sliderInput("Year", label = "Choose Year",
+              min = 2008, max = 2014, value = 2014, step = 1)
+)
+renderPlot({
+  Class.of.Work(input$Year)
+})
+```
+
+#Tool for real estate agent
+help them make judgement about if they are going to buy or rent
+```{r}
+Timeseries<-function(Gender,Age,Married.Status,Family.Size,Education,Class.of.Work,State){
+  Rent.Ratio = numeric(7)
+  for(t in 2008:2014){
+    DataH = DataH #
+    DataP = DataP #
+  #Change the names of Race,COW,ST
+DataH$ST <- as.factor(DataH$ST)
+levels(DataH$ST) <- c("Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut","Delaware", "District of Columbia", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota","Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota","Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia","Wisconsin", "Wyoming", "Puerto Rico")
+DataP$RAC1P = as.factor(DataP$RAC1P)
+levels(DataP$RAC1P) = c("White","Black or African American","American Indian","Alaska Native","Tribes","Asian","Hawaiian/Pacific","Other alone","Two or more races")
+DataP$COW = as.factor(DataP$COW)
+levels(DataP$COW) = c("Private profit", "Private non-profit", "Local government", "State government", "Federal government", "Self-employed", "Self-employed", "Working without pay", "Unemployed")
+DataP$SCHL = as.factor(DataP$SCHL)
+levels(DataP$SCHL) = c(rep("Below Bachelor",20),"Bachelor","Master","Professional","Doctorate")  
+
+#First Consider House Variables
+    Rent = DataH%>%filter(!is.na(TEN),!is.na(SERIALNO))%>%
+      filter(TEN == 3,
+             NP==Family.Size,
+             ST == Sate)
+    Buy = DataH%>%filter(!is.na(TEN),!is.na(SERIALNO))%>%
+      filter(TEN == c(1,2),
+             NP==Family.Size,
+             ST == Sate)
+    PRent = DataP%>%filter(SERIALNO%in%Rent$SERIALNO,
+                           AGEP == AGE,
+                           MAR == Married.Status,
+                           COW == Class.of.Work,
+                           SEX == Gender,
+                           SCHL == Education)%>%summarise(Count = n())%>%select(Count)
+     BRent = DataP%>%filter(SERIALNO%in%Buy$SERIALNO,
+                           AGEP == AGE,
+                           MAR == Married.Status,
+                           COW == Class.of.Work,
+                           SEX == Gender,
+                           SCHL == Education)%>%summarise(Count=n())%>%select(Count)
+     Rent.Ratio[t-2007] = PRent$Count/BRent$Count
+     
+  
+  
+  }
+}
+```
+
+
