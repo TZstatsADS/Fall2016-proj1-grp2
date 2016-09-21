@@ -11,7 +11,7 @@ Term: Fall 2016
 	+ Kyongmook Lim
 	+ Rong Li
 	
-+ Project summary: Is he going to rent or buy? -- a practical tool for real estate agent.
++ Project summary: Is he going to rent or buy? -- a practical tool for real estate agent. See main.rmd in output folder for presentation.
 	
 **Contribution statement**: ([default](doc/a_note_on_contributions.md)) All team members contributed equally in all stages of this project. All team members approve our work presented in this GitHub repository including this contributions statement. 
 
