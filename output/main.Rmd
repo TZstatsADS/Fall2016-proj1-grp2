@@ -19,21 +19,25 @@ Do the younger rent more than the older?
 
 What influence do different industries have on people's rent/buy strategy?
 
-[Industry](https://rong.shinyapps.io/class_of_work/)     
+[Industry](https://rong.shinyapps.io/class_of_work/)      
+![Industry](../figs/industry.png)       
 
 
 Does larger family tend to buy a house instead of renting?
 
 [Family Size](https://rong.shinyapps.io/family/)      
+![Family Size](../figs/familySize.png)       
 
 
 Maybe some cultures are most reluctant to rent?
 
-[Race](https://rong.shinyapps.io/race/)      
+[Race](https://rong.shinyapps.io/race/)     
+![Race](../figs/race.png)       
 
 
 ## So ... will she rent or buy? 
-[Tool](https://rong.shinyapps.io/tool/)     
+[Tool](https://rong.shinyapps.io/tool/)       
+![Tool](../figs/tool.png)       
 
 
     
