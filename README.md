@@ -10,6 +10,8 @@ Term: Fall 2016
 	+ Zichen Wu
 	+ Kyongmook Lim
 	+ Rong Li
+
++ Final Repo: [ACS](rpubs.com/ZiweiMeng/211155)
 	
 + Project summary: Is he going to rent or buy? -- a practical tool for real estate agent. See main.rmd in output folder for presentation.
 	
