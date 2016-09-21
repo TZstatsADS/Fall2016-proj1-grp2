@@ -1,0 +1,76 @@
+---
+title: "Untitled"
+runtime: shiny
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(data.table)
+library(dplyr)
+setwd("~/Desktop/Columbia University/third semester/Applied Data Science/project 1/dataset")
+# FData1 = fread("ss14husa.csv",select = c("TEN","NP","ST"))
+# FData2 = fread("ss14husb.csv",select=c("TEN","NP","ST"))
+# FData = rbind(FData1,FData2)
+# rm(FData1,FData2)
+# save(FData,file = "F1.RData")
+load("F1.RData")
+
+
+```
+```{r}
+GetD<-function(x){
+  Rent = FData%>%filter(TEN == 3)
+Buy = FData%>%filter(TEN == c(1,2))
+N_NY.Rent = FData%>%filter(!is.na(NP))%>%select(NP,TEN,ST)%>%mutate(NP=as.numeric(NP))%>%
+  filter(ST == as.character(x))%>%select(NP,TEN)%>%group_by(NP)%>%summarise(Percentage = n())%>%mutate(Percentage = Percentage/sum(Percentage))%>%mutate(TEN = "RENT")
+
+N_NY.Buy = Buy%>%filter(!is.na(NP))%>%select(NP,TEN,ST)%>%mutate(NP=as.numeric(NP))%>%
+  filter(ST == as.character(x))%>%select(NP,TEN)%>%group_by(NP)%>%summarise(Percentage = n())%>%mutate(Percentage = Percentage/sum(Percentage))%>%mutate(TEN = "BUY")
+         
+N_NY.Rent.Buy = rbind(N_NY.Rent,N_NY.Buy)
+return(N_NY.Rent.Buy)
+}
+```
+
+
+
+```{r eruptions, echo=FALSE}
+inputPanel(
+  selectInput("State", label = "StateCode",
+              choices = 1:40, selected = 5)
+)
+renderPlot({
+  ggplot(GetD(input$State),aes(x = NP, y = Percentage, width = 0.7, fill = TEN)) + geom_bar(stat = "identity",  position = "dodge")+
+  ggtitle("Number of People in the House in New York") + labs(x = "Number of people",y="Percentage") 
+  
+})
+```
+
+
+
+## Embedded Application
+
+It's also possible to embed an entire Shiny application within an R Markdown document using the `shinyAppDir` function. This example embeds a Shiny application located in another directory:
+
+```{r tabsets, echo=FALSE}
+shinyAppDir(
+  system.file("examples/06_tabsets", package = "shiny"),
+  options = list(
+    width = "100%", height = 550
+  )
+)
+```
+
+Note the use of the `height` parameter to determine how much vertical space the embedded application should occupy.
+
+You can also use the `shinyApp` function to define an application inline rather then in an external directory.
+
+In all of R code chunks above the `echo = FALSE` attribute is used. This is to prevent the R code within the chunk from rendering in the document alongside the Shiny components.
+
+
+
