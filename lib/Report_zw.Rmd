@@ -1,0 +1,230 @@
+---
+title: "Untitled"
+runtime: shiny
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Why we do this project
+
+#Deal With Data
+```{r,echo = FALSE}
+#All data here saving as p14.rds or h14.rds
+library(dplyr)
+library(ggplot2)
+library(choroplethr)
+library(data.table)
+library(stringr)
+setwd('~/Documents/Fall2016/G5243/lib')
+source('utilities.R')
+```
+
+#Plots
+```{r,echo = FALSE}
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  require(grid)
+  
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+  
+  numPlots = length(plots)
+  
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                     ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+  
+  if (numPlots==1) {
+    print(plots[[1]])
+    
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+    
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+      
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+```
+
+
+
+#Deviation from Economically Rational Decision
+```{r,echo = FALSE}
+rentRatio <- function(Year,PType){
+  Year <- str_sub(as.character(Year),-2)
+  h <- readRDS(paste('../output/h',Year,'.rds',sep=''))
+  p <- readRDS(paste('../output/p',Year,'.rds',sep=''))
+  h <- h %>%
+    select(SERIALNO,ST,TEN,VALP,RNTP)
+  p <- p %>%
+    select(SERIALNO,PINCP)
+  popHouse <- p %>% 
+    left_join(h, by.x=c("SERIALNO"))
+  rm(p,h)
+  
+  stCodes <- stateCodes()
+  
+  stateRent <- popHouse %>%
+    group_by(ST) %>%
+    filter(TEN==3) %>%
+    dplyr::summarise(rent=n())
+  stateOwn <- popHouse %>%
+    group_by(ST) %>%
+    filter(TEN %in% c(1,2)) %>%
+    dplyr::summarise(own=n())
+  RentVSOwn <- stateRent %>%
+  right_join(stateOwn, by.x=c("ST"))
+  rentRatio<- RentVSOwn %>%
+    mutate(rentRatio = rent/(own+rent)) %>%
+    select(ST,rentRatio) 
+  
+  medHouseValue <- popHouse %>%
+    group_by(ST) %>%
+    select(ST,VALP) %>%
+    na.omit() %>%
+    dplyr::summarise(medPrice=median(VALP)) 
+  medRent <- popHouse %>%
+    group_by(ST) %>%
+    select(ST,RNTP) %>%
+    na.omit() %>%
+    dplyr::summarise(medRent=median(RNTP)) 
+  HouseToRent <- medRent %>%
+    select(ST,medRent) %>%
+    left_join(medHouseValue,by.x=c("ST")) %>%
+    mutate(shouldRent=medHouseValue$medPrice/(medRent))
+  
+  rentRatio2shouldRent <- HouseToRent%>%
+    select(ST,shouldRent)%>%
+    left_join(rentRatio,by.x=c("ST"))
+  
+  switch(PType,
+         'scatter'={
+           p <- ggplot(rentRatio2shouldRent, aes(shouldRent, rentRatio)) + geom_point()
+           cf <- coef(lm(rentRatio ~ shouldRent, data = rentRatio2shouldRent))
+           p + geom_abline(intercept = cf[1], slope = cf[2])
+         },
+         'deviation map'={
+           l <- lm(rentRatio ~ shouldRent, data = rentRatio2shouldRent)
+           rR <- data.table(ST=rentRatio2shouldRent$ST,value=l$residuals)
+           rR <- rR%>%
+             left_join(stCodes,by.x=c('ST'))
+           state_choropleth(rR, legend = "Degree of Irrational Rent Willingness",title = "Degree of Deviation from\nEconomically Rational Rent Decision", num_colors=8)
+         },
+         'rent ratio map'={
+           rR <- rentRatio2shouldRent%>%
+             left_join(stCodes,by.x=c('ST'))
+           rR$value <- rR$rentRatio
+          state_choropleth(rR, legend = "rent ratio",title = "Actual Rent Ratio by States", num_colors=8) 
+         },
+         'house/rent map'={
+           rR <- rentRatio2shouldRent%>%
+             left_join(stCodes,by.x=c('ST'))
+           rR$value <- rR$shouldRent
+          state_choropleth(rR, legend = "relative house price",title = "House Price adjusted by Monthly Rent", num_colors=8)  
+         })
+  
+  
+
+}
+```
+
+```{r rentRatio, echo=FALSE}
+inputPanel(
+  sliderInput("Year", label = "Choose Year",
+              min = 2008, max = 2014, value = 2014, step = 1),
+  selectInput("Plot_Type", label = "Plot Type",
+              choices = c("rent ratio map","house/rent map","scatter","deviation map"),selected = "scatter",width ="100%")
+)
+renderPlot({rentRatio(input$Year,input$Plot_Type)
+  })
+```
+
+#Marriage Status and Age Influence
+```{r,echo = FALSE}
+ageMar <- function(Year,PType){
+  Year <- str_sub(as.character(Year),-2)
+  h <- readRDS(paste('../output/h',Year,'.rds',sep=''))
+  p <- readRDS(paste('../output/p',Year,'.rds',sep=''))
+  h <- h %>%
+    select(SERIALNO,TEN)
+  p <- p %>%
+    select(SERIALNO,AGEP,MAR)
+  popHouse <- p %>% 
+    left_join(h, by.x=c("SERIALNO"))
+  rm(p,h)
+  
+  ageRent <- popHouse %>%
+    group_by(AGEP) %>%
+    filter(TEN==3) %>%
+    dplyr::summarise(rent=n())
+  ageOwn <- popHouse %>%
+    group_by(AGEP) %>%
+    filter(TEN %in% c(1,2)) %>%
+    dplyr::summarise(own=n())
+  ageRentVSOwn <- ageRent %>%
+    right_join(ageOwn, by.x=c("AGEP"))
+  ageRentRatio<- ageRentVSOwn %>%
+    mutate(rentRatio = rent/(own+rent)) %>%
+    select(AGEP,rentRatio) 
+  
+  marRent <- popHouse %>%
+    group_by(MAR) %>%
+    filter(TEN==3) %>%
+    dplyr::summarise(rent=n())
+  marOwn <- popHouse %>%
+    group_by(MAR) %>%
+    filter(TEN %in% c(1,2)) %>%
+    dplyr::summarise(own=n())
+  marRentVSOwn <- marRent %>%
+    right_join(marOwn, by.x=c("MAR"))
+  marRentRatio<- marRentVSOwn %>%
+    mutate(rentRatio = rent/(own+rent)) %>%
+    select(MAR,rentRatio) 
+  marRentRatio$MAR <- as.factor(marRentRatio$MAR)
+  levels(marRentRatio$MAR) <- c("Marriaged","Windowed","Divorced","Separated","Never Marriaged or too Young")
+  
+  switch(PType,
+         'age'={
+           ggplot(ageRentRatio,aes(x = AGEP, y = rentRatio)) + geom_point() +
+    ggtitle("Rent Ratio against Age") + labs(x = "Age",y="Rent Ratio")
+         },
+         'marriage status'={
+           ggplot(marRentRatio,aes(x = MAR, y = rentRatio)) + geom_bar(aes(fill = MAR),stat="identity")+ggtitle("Rent Ratio against Marriage Status") + labs(x = "Marriage Status",y="Rent Ratio") 
+         }
+         )
+  
+  
+
+}
+```
+
+```{r marriage and age, echo=FALSE}
+inputPanel(
+  sliderInput("a.Year", label = "Choose Year",
+              min = 2008, max = 2014, value = 2014, step = 1),
+  selectInput("a.Plot_Type", label = "Personal Status",
+              choices = c("marriage status","age"),selected = "age",width ="100%")
+)
+renderPlot({
+  ageMar(input$a.Year,input$a.Plot_Type)
+  })
+```
+
+
+
+
